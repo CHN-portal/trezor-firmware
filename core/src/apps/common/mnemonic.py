@@ -1,5 +1,5 @@
 import storage.device
-from trezor import ui, workflow
+from trezor import ui, workflow, utils
 from trezor.crypto import bip39, slip39
 from trezor.messages import BackupType
 
@@ -62,11 +62,13 @@ def _start_progress() -> None:
     ui.backlight_fade(ui.BACKLIGHT_DIM)
     ui.display.clear()
     ui.header("Please wait")
-    ui.display.refresh()
+    ui.refresh()
     ui.backlight_fade(ui.BACKLIGHT_NORMAL)
 
 
 def _render_progress(progress: int, total: int) -> None:
+    if utils.DISABLE_ANIMATION:
+        return
     p = 1000 * progress // total
     ui.display.loader(p, False, 18, ui.WHITE, ui.BG)
-    ui.display.refresh()
+    ui.refresh()
