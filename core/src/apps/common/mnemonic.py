@@ -1,5 +1,5 @@
 import storage.device
-from trezor import ui, workflow, utils
+from trezor import ui, utils, workflow
 from trezor.crypto import bip39, slip39
 from trezor.messages import BackupType
 

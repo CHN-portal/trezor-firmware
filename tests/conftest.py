@@ -14,8 +14,7 @@
 # You should have received a copy of the License along with this library.
 # If not, see <https://www.gnu.org/licenses/lgpl-3.0.html>.
 
-import filecmp
-import itertools
+import hashlib
 import os
 import re
 from contextlib import contextmanager
@@ -64,7 +63,7 @@ def _get_test_dirname(node):
     return "{}_{}".format(node_module_name, node_name)
 
 
-def _record_screen_fixtures(fixture_dir, test_dir):
+def _check_screen_fixtures_dir(fixture_dir):
     if fixture_dir.exists():
         # remove old fixtures
         for fixture in fixture_dir.iterdir():
@@ -73,6 +72,10 @@ def _record_screen_fixtures(fixture_dir, test_dir):
         # create the fixture dir, if not present
         fixture_dir.mkdir()
 
+
+def _record_screen_fixtures(fixture_dir, test_dir):
+    _check_screen_fixtures_dir(fixture_dir)
+
     # move recorded screenshots into fixture directory
     records = sorted(test_dir.iterdir())
     for index, record in enumerate(sorted(records)):
@@ -80,20 +83,49 @@ def _record_screen_fixtures(fixture_dir, test_dir):
         record.replace(fixture)
 
 
-def _assert_screen_recording(fixture_dir, test_dir):
-    fixtures = sorted(fixture_dir.iterdir())
+def _hash_screen_fixtures(fixture_dir, test_dir):
+    _check_screen_fixtures_dir(fixture_dir)
+
+    # hash recorded screenshots
     records = sorted(test_dir.iterdir())
+    digest = _hash_files(records)
 
-    if not fixtures:
-        return
+    with open(fixture_dir / "hash.txt", "w") as f:
+        f.write(digest)
 
-    for fixture, image in itertools.zip_longest(fixtures, records):
-        if fixture is None:
-            pytest.fail("Missing fixture for image {}".format(image))
-        if image is None:
-            pytest.fail("Missing image for fixture {}".format(fixture))
-        if not filecmp.cmp(fixture, image):
-            pytest.fail("Image {} and fixture {} differ".format(image, fixture))
+
+def _hash_files(files):
+    BLOCKSIZE = 1024
+
+    hasher = hashlib.sha256()
+    for file in sorted(files):
+        with open(file, "rb") as f:
+            buffer = f.read(BLOCKSIZE)
+            while len(buffer) > 0:
+                hasher.update(buffer)
+                buffer = f.read(BLOCKSIZE)
+
+    return hasher.digest().hex()
+
+
+def _assert_screen_recording(fixture_dir, test_dir):
+    records = sorted(test_dir.iterdir())
+    hash_file = fixture_dir / "hash.txt"
+
+    if not hash_file.exists():
+        raise ValueError("File hash.txt not found.")
+
+    with open(hash_file, "r") as f:
+        expected_hash = f.read()
+
+    actual_hash = _hash_files(records)
+
+    if actual_hash != expected_hash:
+        pytest.fail(
+            "Hash of {} differs.\nExpected: {}\nActual:   {}".format(
+                fixture_dir.name, expected_hash, actual_hash
+            )
+        )
 
 
 @contextmanager
@@ -114,6 +146,8 @@ def _screen_recording(client, request, tmp_path):
             fixture_path = fixture_root.resolve() / _get_test_dirname(request.node)
             if test_screen == "record":
                 _record_screen_fixtures(fixture_path, tmp_path)
+            if test_screen == "hash":
+                _hash_screen_fixtures(fixture_path, tmp_path)
             elif test_screen == "test":
                 _assert_screen_recording(fixture_path, tmp_path)
 
