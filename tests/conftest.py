@@ -17,6 +17,8 @@
 import hashlib
 import os
 import re
+import itertools
+import filecmp
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -109,6 +111,22 @@ def _hash_files(files):
 
 
 def _assert_screen_recording(fixture_dir, test_dir):
+    fixtures = sorted(fixture_dir.iterdir())
+    records = sorted(test_dir.iterdir())
+
+    if not fixtures:
+        return
+
+    for fixture, image in itertools.zip_longest(fixtures, records):
+        if fixture is None:
+            pytest.fail("Missing fixture for image {}".format(image))
+        if image is None:
+            pytest.fail("Missing image for fixture {}".format(fixture))
+        if not filecmp.cmp(fixture, image):
+            pytest.fail("Image {} and fixture {} differ".format(image, fixture))
+
+
+def _assert_screen_hashes(fixture_dir, test_dir):
     records = sorted(test_dir.iterdir())
     hash_file = fixture_dir / "hash.txt"
 
@@ -146,9 +164,11 @@ def _screen_recording(client, request, tmp_path):
             fixture_path = fixture_root.resolve() / _get_test_dirname(request.node)
             if test_screen == "record":
                 _record_screen_fixtures(fixture_path, tmp_path)
-            if test_screen == "hash":
+            elif test_screen == "hash":
                 _hash_screen_fixtures(fixture_path, tmp_path)
-            elif test_screen == "test":
+            elif test_screen == "test-hash":
+                _assert_screen_hashes(fixture_path, tmp_path)
+            elif test_screen == "test-record":
                 _assert_screen_recording(fixture_path, tmp_path)
 
 

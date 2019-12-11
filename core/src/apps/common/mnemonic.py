@@ -34,7 +34,7 @@ def get_seed(passphrase: str = "", progress_bar: bool = True) -> bytes:
         raise ValueError("Mnemonic not set")
 
     render_func = None
-    if progress_bar:
+    if progress_bar and not utils.DISABLE_ANIMATION:
         _start_progress()
         render_func = _render_progress
 
@@ -67,8 +67,6 @@ def _start_progress() -> None:
 
 
 def _render_progress(progress: int, total: int) -> None:
-    if utils.DISABLE_ANIMATION:
-        return
     p = 1000 * progress // total
     ui.display.loader(p, False, 18, ui.WHITE, ui.BG)
     ui.refresh()
