@@ -27,6 +27,7 @@ from ..common import EXTERNAL_ENTROPY, click_through, read_and_confirm_mnemonic
 
 
 @pytest.mark.skip_t1
+@pytest.mark.skip_ui
 @pytest.mark.setup_client(uninitialized=True, random_seed=0)
 def test_reset_recovery(client):
     mnemonic = reset(client)
