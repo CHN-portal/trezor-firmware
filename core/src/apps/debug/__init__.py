@@ -122,6 +122,8 @@ if __debug__:
             save_screen = True
         else:
             save_screen = False
+            # clear buffer in C
+            ui.display.clear_save()
 
         return Success()
 
